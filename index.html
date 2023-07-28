@@ -8,6 +8,13 @@
     <span id="add_icon" class="material-icons-outlined">add_circle</span>
     <input id="distance_input" type="range" min="0" max="2" value="0" step="any" />
     <input id="color_input" type="color" value="#0096db" />
+    <div id="gizmo-block">
+      <span id="move_icon" class="material-icons-outlined">open_with</span>
+      <span id="scale_icon" class="material-icons-outlined">open_in_full</span>
+      <span id="rotate_icon" class="material-icons-outlined">autorenew</span>
+      <span id="delete_icon" class="material-icons-outlined">delete</span>
+      <span id="close_icon" class="material-icons-outlined">cancel</span> 
+    </div>
   </div>
 
   <script src="https://cdn.babylonjs.com/babylon.js"></script>
@@ -18,6 +25,12 @@
     let addIcon = window.document.querySelector('#add_icon');
     let distanceInput = window.document.querySelector('#distance_input');
     let colorInput = window.document.querySelector('#color_input');
+    let gizmoBlock = window.document.querySelector('#gizmo-block');
+    let moveIcon = window.document.querySelector('#move_icon');
+    let scaleIcon = window.document.querySelector('#scale_icon');
+    let rotateIcon = window.document.querySelector('#rotate_icon');
+    let deleteIcon = window.document.querySelector('#delete_icon');
+    let closeIcon = window.document.querySelector('#close_icon');
     // Создание движка
     let engine = new BABYLON.Engine(canvas);
     // Создание сцены и присоеденение ее к движку
@@ -52,6 +65,9 @@
       }
     });
 
+    // Подключение Gizmo
+    let gizmoManager = new BABYLON.GizmoManager(scene);
+
     // Создание куба
     let box = new BABYLON.Mesh.CreateBox('box', 0.1, scene);
     box.material = new BABYLON.StandardMaterial('material', scene);
@@ -67,6 +83,7 @@
     let activeElement = null;
     let distance = 0.3;
     let selectedColor = null;
+    let editingElement = null;
     // ФУНКЦИИ
     const createObject = () => {
       // Создание куба
@@ -86,6 +103,54 @@
       let blue = parseInt(hexColor.substr(5, 2), 16);
       return new BABYLON.Color3(red/255, green/255, blue/255);
     }
+    // Функции для Gizmo
+    const clearGizmoOptions = () => {
+      moveIcon.style.color = '#0096db';
+      scaleIcon.style.color = '#0096db';
+      rotateIcon.style.color = '#0096db';
+      gizmoManager.positionGizmoEnabled = false;
+      gizmoManager.boundingBoxGizmoEnabled = false;
+    }
+    const setBoundingBox = (option) => {
+      gizmoManager.boundingBoxGizmoEnabled = true;  
+      gizmoManager.gizmos.boundingBoxGizmo.rotationSphereSize = 0;
+      gizmoManager.gizmos.boundingBoxGizmo.scaleBoxSize = 0;
+      switch(option){
+        case 'scale': gizmoManager.gizmos.boundingBoxGizmo.scaleBoxSize = 0.03; break;
+        case 'rotate': gizmoManager.gizmos.boundingBoxGizmo.rotationSphereSize = 0.03; break;
+        default: break;
+      }
+      gizmoManager.gizmos.boundingBoxGizmo.updateBoundingBox();        
+    }
+    const setGizmoOption = (option) => {
+      clearGizmoOptions();
+      switch(option) {
+        case 'move': {
+          moveIcon.style.color = 'white';
+          gizmoManager.positionGizmoEnabled = true;
+          break;
+        }
+        case 'scale': {
+          scaleIcon.style.color = 'white';
+          setBoundingBox(option);  
+          break;      
+        }
+        case 'rotate': {
+          rotateIcon.style.color = 'white';
+          setBoundingBox(option);     
+          break;      
+        }        
+        default: break;
+      }
+    }
+    const closeGizmo = (needDispose = false) => {
+      clearGizmoOptions();
+      gizmoManager._attachedMesh = null;
+      gizmoBlock.style.display = 'none';
+      (needDispose)
+        ? editingElement.dispose()
+        : editingElement = null;
+    }
 
     engine.runRenderLoop(() => {
       if(activeElement) {
@@ -103,6 +168,7 @@
         distanceInput.style.display = 'none';
         colorInput.style.display = 'none';
       }else{
+        if(editingElement) closeGizmo();
         event.target.innerText = 'check_circle';
         distanceInput.style.display = 'block';
         colorInput.style.display = 'block';
@@ -116,5 +182,20 @@
       // event.target.value = HEX(#00ff00) => BABYLON.Color3(0, 1, 0)
       selectedColor = getColor(event.target.value);
     });
+    // Обработчики для Gizmo
+    gizmoManager.onAttachedToMeshObservable.add((mesh) => {
+      if(!activeElement){
+        editingElement = mesh;
+        gizmoBlock.style.display = 'block';
+        setGizmoOption('move');
+      }else{
+        gizmoManager._attachedMesh = null;
+      }
+    });
+    moveIcon.addEventListener('click', (event) => setGizmoOption('move'));
+    scaleIcon.addEventListener('click', (event) => setGizmoOption('scale'));
+    rotateIcon.addEventListener('click', (event) => setGizmoOption('rotate'));
+    deleteIcon.addEventListener('click', (event) => closeGizmo(true));
+    closeIcon.addEventListener('click', (event) => closeGizmo());
   </script>
 </body>
